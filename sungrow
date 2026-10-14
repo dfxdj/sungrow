@@ -1,0 +1,134 @@
+#!/usr/bin/env python3
+
+import argparse
+import pathlib
+import pprint
+import requests
+import typing
+import yaml
+
+from pysungrow import Client
+
+
+def cli():
+    parser = argparse.ArgumentParser(
+        description="Simple CLI tool to access the Sungrow/iSolarCloud API"
+    )
+    parser.add_argument(
+        "action",
+        help="API action to perform, one of: set, login, plant-list, device-list, plant-detail, metrics",
+    )
+    parser.add_argument(
+        "-f",
+        "--state-file",
+        metavar="FILE",
+        help="YAML file to store account information",
+        default=pathlib.Path.home() / ".sungrow.yml",
+    )
+    parser.add_argument(
+        "-k",
+        "--app-key",
+        metavar="KEY",
+        help="Set app key",
+    )
+    parser.add_argument(
+        "-s",
+        "--app-secret",
+        metavar="SECRET",
+        help="Set app secret",
+    )
+    parser.add_argument(
+        "-g",
+        "--gateway",
+        metavar="URL",
+        help="iSolarCloud gateway URL",
+    )
+    parser.add_argument(
+        "-u",
+        "--username",
+        metavar="USERNAME",
+        help="Login username/email",
+    )
+    parser.add_argument(
+        "-p",
+        "--password",
+        metavar="PASSWORD",
+        help="Login password",
+    )
+    parser.add_argument(
+        "--ps-id",
+        metavar="INT",
+        help="`ps_id` as returned by `plant-list`",
+        type=int,
+    )
+    parser.add_argument(
+        "--serial",
+        "--sn",
+        metavar="STRING",
+        help="Serial number as returned by `device-list`",
+    )
+    parser.add_argument(
+        "--device-type",
+        metavar="INT",
+        help="Must match the type of the device(s) being queried",
+        type=int,
+    )
+    parser.add_argument(
+        "--keys",
+        metavar="STRING",
+        help="Device keys to query metrics for",
+        action="append",
+    )
+    parser.add_argument(
+        "--metrics",
+        metavar="STRING",
+        help="Measuring point IDs",
+        action="append",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        help="Print extra data",
+        action="store_true",
+    )
+
+    args = parser.parse_args()
+
+    c = Client(verbose=args.verbose)
+
+    c.load_config(args.state_file)
+    c.config(args)
+
+    if args.action == "set":
+        pass
+    elif args.action == "login":
+        c.login()
+    elif args.action == "plant-list":
+        l = c.plant_list()
+        for p in l["result_data"]["pageList"]:
+            print(f'{p["ps_name"]} - {p["ps_location"]} - {p["ps_id"]}')
+    elif args.action == "device-list":
+        l = c.device_list(args.ps_id)
+        for p in l["result_data"]["pageList"]:
+            print(
+                f'{p["ps_id"]} - serial: {p["communication_dev_sn"]} - {p["type_name"]} - {p["device_name"]} - key: {p["ps_key"]} - {p["device_model_code"]} -  type: {p["device_type"]} - code: {p["device_code"]}'
+            )
+    elif args.action == "plant-detail":
+        r = c.plant_detail(args.serial)
+        p = r["result_data"]
+        print(f'{p["ps_id"]} - key: {p["ps_key"]} - {p["ps_type_name"]} - {p["ps_type"]}')
+    elif args.action == "metrics":
+        r = c.metrics(args.device_type, args.metrics, args.keys)
+        p = r["result_data"]
+        for d in p["device_point_list"]:
+            dp = d["device_point"]
+            l = [dp["ps_key"]]
+            for m in args.metrics:
+                l.append(dp.get(f"p{m}", "-"))
+            print(" ".join(l))
+
+    c.write_config(args.state_file)
+
+
+if __name__ == "__main__":
+    cli()

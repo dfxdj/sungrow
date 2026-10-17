@@ -15,11 +15,12 @@ which implements a subset of the public Sungrow / iSolarCloud API.
     * Log in to the Sungrow developer portal. Either go from the iSolarCloud
       web site (there's a link in the top right), or go via
       https://developer-api.isolarcloud.com/
-    * Make sure you choose the appropriate server. The server is shown when you
-      log in, either in the app or on the web site. ("European server" or
-      "international server" etc)
+    * Make sure you choose correct server appropriate for your account. The
+      server is shown when you log in, either in the app or on the web site.
+      ("European server" or "international server" etc). If you choose the wrong
+      server you won't be able to log in
     * Log-in credentials to the developer portal are the same as for the
-      regular iSolarCloud web site and app
+      regular iSolarCloud web site and mobile app
     * Go to "applications" and "create application"
     * Choose a name, company name, description. Disable OAuth 2.0
       authentication
@@ -27,11 +28,9 @@ which implements a subset of the public Sungrow / iSolarCloud API.
     * View the application, note the "appkey" and the "secret key"
     * Browse the "documentation". The list of device types is relevant
       (appendix 1) as well as the lists of "measuring points"
-    * Figure out the API gateway URI for the appropriate server. GoSungrow has
-      a list
-      [here](https://github.com/MickMake/GoSungrow/blob/master/servers.txt).
-      There might be a way to find this out through the developer portal
-      somewhere?
+    * Determine the API gateway URI for the appropriate server. This is listed
+      in the developer portal documentation under "getting started" (e.g.
+      `https://gateway.isolarcloud.eu/` for the "European server")
 
 ### CLI Usage
 
@@ -86,3 +85,23 @@ which implements a subset of the public Sungrow / iSolarCloud API.
       single dash `-`
     * Some useful metrics are obtainable from the "plant" device (type 11)
       while others are obtainable for individual other devices
+* Historical metrics
+    * `./sungrow historic [--interval=MINS] [--period=MINS --start=DATETIME
+      --end=DATETIME] --keys=KEY --keys=KEY ...  --metrics=xxxxx
+      --metrics=xxxxx ...`
+    * Example: `./sungrow -v historic --period=120 --keys=999999_11_0_0
+      --metrics=83252 --metrics=83106 --metrics=83033`
+    * Similar to `metrics`, but returns a list of historic (stored) data points
+      instead of the real-time values
+    * Multiple metrics from multiple devices can be requested. All devices must
+      be of the same time. Unlike with `metrics`, the device type is not
+      required part of the request
+    * The `interval` is the granularity of the returned time series, in
+      minutes, defaulting to 15-minute steps
+    * Start and end date/times must be given, in ISO 8601 format, without time
+      zone information
+        * Either start or end times may be omitted. The omitted time is then
+          determined from the given `period` in minutes
+        * If both start and end times have been omitted, then the end time is
+          taken as the current time
+        * Time zone is the plant's time zone

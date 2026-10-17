@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
-import argparse
-import pathlib
+import datetime
 import pprint
 import requests
 import typing
@@ -94,6 +93,9 @@ class Client:
             r["token"] = self._c.token
             rsp = self.rreq(p, r)
 
+        if rsp["result_code"] != "1":
+            raise RuntimeError(f"API returned non-success\n{rsp}")
+
         return rsp
 
     def login(self) -> None:
@@ -109,21 +111,21 @@ class Client:
 
         self._c.token = r["result_data"]["token"]
 
-    def plant_list(self) -> None:
+    def plant_list(self) -> dict:
         r = self.req(
             "getPowerStationList",
             {"curPage": 1, "size": 10},
         )
         return r
 
-    def device_list(self, ps_id: int) -> None:
+    def device_list(self, ps_id: int) -> dict:
         r = self.req(
             "getDeviceList",
             {"curPage": 1, "size": 50, "ps_id": ps_id},
         )
         return r
 
-    def plant_detail(self, serial: str) -> None:
+    def plant_detail(self, serial: str) -> dict:
         r = self.req(
             "getPowerStationDetail",
             {"sn": serial},
@@ -132,13 +134,56 @@ class Client:
 
     def metrics(
         self, device_type: int, points: typing.List[str], key_list: typing.list[str]
-    ) -> None:
+    ) -> dict:
         r = self.req(
             "getDeviceRealTimeData",
             {
                 "device_type": device_type,
                 "point_id_list": points,
                 "ps_key_list": key_list,
+            },
+        )
+        return r
+
+    def historic(
+        self,
+        points: typing.List[str],
+        key_list: typing.list[str],
+        interval: int | datetime.timedelta = 15,
+        start: datetime.datetime | str | None = None,
+        end: datetime.datetime | str | None = None,
+        period: datetime.timedelta | int | float | None = None,
+    ) -> dict:
+        if isinstance(interval, datetime.timedelta):
+            interval = int(interval.total_seconds() / 60)
+        if start and isinstance(start, str):
+            start = datetime.datetime.fromisoformat(start)
+        if end and isinstance(end, str):
+            end = datetime.datetime.fromisoformat(end)
+        if period and (isinstance(period, int) or isinstance(period, float)):
+            period = datetime.timedelta(minutes=period)
+
+        if not start:
+            if not period:
+                raise RuntimeError("No time span has been given")
+            if not end:
+                end = datetime.datetime.now()
+            start = end - period
+        elif not end:
+            if not period:
+                raise RuntimeError("No time span has been given")
+            end = start + period
+
+        points = ",".join([f"p{p}" for p in points])
+
+        r = self.req(
+            "getDevicePointMinuteDataList",
+            {
+                "minute_interval": interval,
+                "points": points,
+                "ps_key_list": key_list,
+                "start_time_stamp": start.strftime("%Y%m%d%H%M%S"),
+                "end_time_stamp": end.strftime("%Y%m%d%H%M%S"),
             },
         )
         return r

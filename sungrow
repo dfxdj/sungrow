@@ -1,28 +1,28 @@
 #!/usr/bin/env python3
 
 import argparse
+import datetime
 import pathlib
-import pprint
-import requests
 import typing
-import yaml
 
 from pysungrow import Client
 
 
-def cli():
+def cli() -> None:
     parser = argparse.ArgumentParser(
         description="Simple CLI tool to access the Sungrow/iSolarCloud API"
     )
     parser.add_argument(
         "action",
-        help="API action to perform, one of: set, login, plant-list, device-list, plant-detail, metrics",
+        help="API action to perform, one of: set, login, plant-list, device-list, plant-detail, metrics, historic",
+        type=str,
     )
     parser.add_argument(
         "-f",
         "--state-file",
         metavar="FILE",
         help="YAML file to store account information",
+        type=str,
         default=pathlib.Path.home() / ".sungrow.yml",
     )
     parser.add_argument(
@@ -30,30 +30,35 @@ def cli():
         "--app-key",
         metavar="KEY",
         help="Set app key",
+        type=str,
     )
     parser.add_argument(
         "-s",
         "--app-secret",
         metavar="SECRET",
         help="Set app secret",
+        type=str,
     )
     parser.add_argument(
         "-g",
         "--gateway",
         metavar="URL",
         help="iSolarCloud gateway URL",
+        type=str,
     )
     parser.add_argument(
         "-u",
         "--username",
         metavar="USERNAME",
         help="Login username/email",
+        type=str,
     )
     parser.add_argument(
         "-p",
         "--password",
         metavar="PASSWORD",
         help="Login password",
+        type=str,
     )
     parser.add_argument(
         "--ps-id",
@@ -66,6 +71,7 @@ def cli():
         "--sn",
         metavar="STRING",
         help="Serial number as returned by `device-list`",
+        type=str,
     )
     parser.add_argument(
         "--device-type",
@@ -77,13 +83,40 @@ def cli():
         "--keys",
         metavar="STRING",
         help="Device keys to query metrics for",
+        type=str,
         action="append",
     )
     parser.add_argument(
         "--metrics",
         metavar="STRING",
         help="Measuring point IDs",
+        type=str,
         action="append",
+    )
+    parser.add_argument(
+        "--interval",
+        metavar="INT",
+        help="Interval in minutes for historic data",
+        type=int,
+        default=15,
+    )
+    parser.add_argument(
+        "--start",
+        metavar="DATETIME",
+        help="Start date/time for historic data in ISO format",
+        type=str,
+    )
+    parser.add_argument(
+        "--end",
+        metavar="DATETIME",
+        help="End date/time for historic data in ISO format",
+        type=str,
+    )
+    parser.add_argument(
+        "--period",
+        metavar="INT",
+        help="Length of historic data to query in minutes",
+        type=int,
     )
     parser.add_argument(
         "-v",
@@ -99,33 +132,78 @@ def cli():
     c.load_config(args.state_file)
     c.config(args)
 
-    if args.action == "set":
-        pass
-    elif args.action == "login":
-        c.login()
-    elif args.action == "plant-list":
-        l = c.plant_list()
-        for p in l["result_data"]["pageList"]:
-            print(f'{p["ps_name"]} - {p["ps_location"]} - {p["ps_id"]}')
-    elif args.action == "device-list":
-        l = c.device_list(args.ps_id)
-        for p in l["result_data"]["pageList"]:
+    match args.action:
+        case "set":
+            pass
+        case "login":
+            c.login()
+        case "plant-list":
+            l = c.plant_list()
+            for p in l["result_data"]["pageList"]:
+                print(f'{p["ps_name"]} - {p["ps_location"]} - {p["ps_id"]}')
+        case "device-list":
+            l = c.device_list(args.ps_id)
+            for p in l["result_data"]["pageList"]:
+                print(
+                    f'{p["ps_id"]} - serial: {p["communication_dev_sn"]} - {p["type_name"]} - {p["device_name"]} - key: {p["ps_key"]} - {p["device_model_code"]} -  type: {p["device_type"]} - code: {p["device_code"]}'
+                )
+        case "plant-detail":
+            r = c.plant_detail(args.serial)
+            p = r["result_data"]
             print(
-                f'{p["ps_id"]} - serial: {p["communication_dev_sn"]} - {p["type_name"]} - {p["device_name"]} - key: {p["ps_key"]} - {p["device_model_code"]} -  type: {p["device_type"]} - code: {p["device_code"]}'
+                f'{p["ps_id"]} - key: {p["ps_key"]} - {p["ps_type_name"]} - {p["ps_type"]}'
             )
-    elif args.action == "plant-detail":
-        r = c.plant_detail(args.serial)
-        p = r["result_data"]
-        print(f'{p["ps_id"]} - key: {p["ps_key"]} - {p["ps_type_name"]} - {p["ps_type"]}')
-    elif args.action == "metrics":
-        r = c.metrics(args.device_type, args.metrics, args.keys)
-        p = r["result_data"]
-        for d in p["device_point_list"]:
-            dp = d["device_point"]
-            l = [dp["ps_key"]]
-            for m in args.metrics:
-                l.append(dp.get(f"p{m}", "-"))
-            print(" ".join(l))
+        case "metrics":
+            r = c.metrics(args.device_type, args.metrics, args.keys)
+            p = r["result_data"]
+            for d in p["device_point_list"]:
+                dp = d["device_point"]
+                l = [dp["ps_key"]]
+                for m in args.metrics:
+                    l.append(dp.get(f"p{m}", "-"))
+                print(" ".join(l))
+        case "historic":
+            r = c.historic(
+                args.metrics,
+                args.keys,
+                args.interval,
+                start=args.start,
+                end=args.end,
+                period=args.period,
+            )
+            p = r["result_data"]
+            for i in range(len(args.keys)):
+                k = args.keys[i]
+                if i > 0:
+                    print()
+                print(f"--- {k}")
+                l = p.get(k)
+                if not l or not isinstance(l, list):
+                    print("???")
+                else:
+                    for d in l:
+                        ts = d["time_stamp"]
+                        # convert to ISO format
+                        if len(ts) == 14:
+                            ts = (
+                                ts[0:4]
+                                + "-"
+                                + ts[4:6]
+                                + "-"
+                                + ts[6:8]
+                                + "T"
+                                + ts[8:10]
+                                + ":"
+                                + ts[10:12]
+                                + ":"
+                                + ts[12:14]
+                            )
+                        o = [ts]
+                        for m in args.metrics:
+                            o.append(d.get(f"p{m}", "-"))
+                        print(" ".join(o))
+        case _:
+            raise RuntimeError(f'unknown action "{args.action}"')
 
     c.write_config(args.state_file)
 

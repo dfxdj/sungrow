@@ -118,6 +118,13 @@ def cli() -> None:
         type=int,
     )
     parser.add_argument(
+        "--timezone",
+        "--tz",
+        metavar="STR",
+        help="Set time zone to use for historic data time stamps",
+        type=str,
+    )
+    parser.add_argument(
         "-v",
         "--verbose",
         help="Print extra data",
@@ -169,6 +176,7 @@ def cli() -> None:
                 start=args.start,
                 end=args.end,
                 period=args.period,
+                tz=args.timezone,
             )
             p = r["result_data"]
             for k in args.keys:

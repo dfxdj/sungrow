@@ -5,6 +5,7 @@ import pprint
 import requests
 import typing
 import yaml
+import zoneinfo
 
 
 class Client:
@@ -153,7 +154,12 @@ class Client:
         start: datetime.datetime | str | None = None,
         end: datetime.datetime | str | None = None,
         period: datetime.timedelta | int | float | None = None,
+        tz: str | None = None,
     ) -> dict:
+        tzinfo = None
+        if tz:
+            tzinfo = zoneinfo.ZoneInfo(tz)
+
         if isinstance(interval, datetime.timedelta):
             interval = int(interval.total_seconds() / 60)
         if start and isinstance(start, str):
@@ -167,7 +173,7 @@ class Client:
             if not period:
                 raise RuntimeError("No time span has been given")
             if not end:
-                end = datetime.datetime.now()
+                end = datetime.datetime.now(tz=tzinfo)
             start = end - period
         elif not end:
             if not period:

@@ -187,3 +187,34 @@ class Client:
             },
         )
         return r
+
+
+def ts_to_iso(ts: str) -> str:
+    if len(ts) != 14:
+        return ts
+    return (
+        ts[0:4]
+        + "-"
+        + ts[4:6]
+        + "-"
+        + ts[6:8]
+        + "T"
+        + ts[8:10]
+        + ":"
+        + ts[10:12]
+        + ":"
+        + ts[12:14]
+    )
+
+
+def ts_to_datetime(ts: str) -> datetime.datetime | None:
+    if len(ts) != 14:
+        return None
+    return datetime.datetime(
+        int(ts[0:4]),
+        int(ts[4:6]),
+        int(ts[6:8]),
+        int(ts[8:10]),
+        int(ts[10:12]),
+        int(ts[12:14]),
+    )

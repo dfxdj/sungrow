@@ -3,9 +3,8 @@
 import argparse
 import datetime
 import pathlib
+import pysungrow
 import typing
-
-from pysungrow import Client
 
 
 def cli() -> None:
@@ -127,7 +126,7 @@ def cli() -> None:
 
     args = parser.parse_args()
 
-    c = Client(verbose=args.verbose)
+    c = pysungrow.Client(verbose=args.verbose)
 
     c.load_config(args.state_file)
     c.config(args)
@@ -172,33 +171,15 @@ def cli() -> None:
                 period=args.period,
             )
             p = r["result_data"]
-            for i in range(len(args.keys)):
-                k = args.keys[i]
-                if i > 0:
-                    print()
-                print(f"--- {k}")
+            for k in args.keys:
                 l = p.get(k)
                 if not l or not isinstance(l, list):
                     print("???")
                 else:
                     for d in l:
                         ts = d["time_stamp"]
-                        # convert to ISO format
-                        if len(ts) == 14:
-                            ts = (
-                                ts[0:4]
-                                + "-"
-                                + ts[4:6]
-                                + "-"
-                                + ts[6:8]
-                                + "T"
-                                + ts[8:10]
-                                + ":"
-                                + ts[10:12]
-                                + ":"
-                                + ts[12:14]
-                            )
-                        o = [ts]
+                        ts = pysungrow.ts_to_iso(ts)
+                        o = [k, ts]
                         for m in args.metrics:
                             o.append(d.get(f"p{m}", "-"))
                         print(" ".join(o))

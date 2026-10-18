@@ -105,3 +105,5 @@ which implements a subset of the public Sungrow / iSolarCloud API.
         * If both start and end times have been omitted, then the end time is
           taken as the current time
         * Time zone is the plant's time zone
+    * Output format is the same as `metrics` but includes the time stamp in ISO
+      format as the second item in each line

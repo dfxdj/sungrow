@@ -107,3 +107,54 @@ which implements a subset of the public Sungrow / iSolarCloud API.
         * Time zone is the plant's time zone
     * Output format is the same as `metrics` but includes the time stamp in ISO
       format as the second item in each line
+
+### Usage as Library
+
+```
+import pysungrow
+
+###
+
+client = pysungrow.Client()
+
+state_file = "/home/user/.sungrow.yml"
+client.load_config(state_file)
+
+result = client.plant_list()
+result = client.device_list(ps_id)
+result = client.plant_detail(serial)
+
+###
+
+result = client.metrics(device_type=11, points=["83252", "83106", "83033"], key_list=[ps_key])
+
+result = client.metrics(11, ["83252", "83106", "83033"], [ps_key])
+
+###
+
+results = client.historic(points=["83252", "83106", "83033"], key_list=[ps_key], period=60)
+data = results["result_data"][ps_key]
+
+results = client.historic(["83252", "83106", "83033"], [ps_key], interval=15, period=120)
+data = results["result_data"][ps_key]
+
+results = client.historic(["83252", "83106", "83033"], [ps_key], interval=5, start=start_datetime, end=end_datetime)
+data = results["result_data"][ps_key]
+
+results = client.historic(["83252", "83106", "83033"], [ps_key], interval=5, start=start_datetime, period=120)
+data = results["result_data"][ps_key]
+
+results = client.historic(["83252", "83106", "83033"], [ps_key], interval=5, end=end_datetime, period=120)
+data = results["result_data"][ps_key]
+
+client.write_config(state_file)
+
+###
+
+client = pysungrow.Client()
+
+extra_config = { "app_key": "xxxxx" }
+client.config(extra_config)
+client.login()
+client.write_config(state_file)
+```

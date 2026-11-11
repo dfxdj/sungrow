@@ -110,7 +110,7 @@ which implements a subset of the public Sungrow / iSolarCloud API.
 
 ### Usage as Library
 
-```
+```python
 import pysungrow
 
 ###
